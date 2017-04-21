@@ -2,6 +2,9 @@ import numpy as np
 
 def sigmoid(x):
   return 1 / (1 + np.exp(-x))
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 x_data = np.loadtxt('in_train.txt')/100
 y_data = np.loadtxt('out_train.txt')[: , np.newaxis]
@@ -34,7 +37,7 @@ for e in range(epho):
         n4 = np.dot(W4, a3) + B4
         a4 = sigmoid(n4)
         n5 = np.dot(W5, a4) + B5;
-        a5 = sigmoid(n5)
+        a5 = softmax(n5)
 
         t = np.zeros((10,1))
         t[(int)(y_data[i])] = 1

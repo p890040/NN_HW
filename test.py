@@ -2,6 +2,9 @@ import numpy as np
 
 def sigmoid(x):
   return 1 / (1 + np.exp(-x))
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    return np.exp(x) / np.sum(np.exp(x), axis=0)
 
 r = np.load("train_weight.npz")
 W1 = r["W1"]
@@ -30,7 +33,7 @@ for i in range(date_length):
     n4 = np.dot(W4, a3) + B4
     a4 = sigmoid(n4)
     n5 = np.dot(W5, a4) + B5;
-    a5 = sigmoid(n5)
+    a5 = softmax(n5)
 
     if(np.argmax(a5) == y_data_test[i]):
         count+=1
