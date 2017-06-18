@@ -30,12 +30,45 @@ biases = {
     'out': tf.Variable(tf.random_normal([n_classes]))
 }
 
+
+#batch_data = next_batch(train_data, batch_size)
+#batch_target = next_batch(train_target, batch_size)
+#feed = {data: batch_data, target: batch_target}
+
+curr=0
+def next_batch_data(dataset, batch_size):
+    global curr
+    size = dataset.shape[0]
+    if(curr + batch_size > size):
+        B = np.concatenate((dataset[curr:size], dataset[0:batch_size-(size-curr)]))
+        curr = batch_size-(size-curr)
+        return B
+    else:
+        B = dataset[curr:curr+batch_size]
+        curr = curr+batch_size
+        return B
+
+curr2=0
+def next_batch_target(dataset, batch_size):
+    global curr2
+    size = dataset.shape[0]
+    if(curr2 + batch_size > size):
+        B = np.concatenate((dataset[curr2:size], dataset[0:batch_size-(size-curr2)]))
+        curr2 = batch_size-(size-curr2)
+        return B
+    else:
+        B = dataset[curr2:curr2+batch_size]
+        curr2 = curr2+batch_size
+        return B
+
+
 def hot_code(y):
     length = len(y)
     t = np.zeros((length,10))
     for i in range(length):
         t[i][(int)(y[i])] = 1
     return t
+
 y_data_hotcode = hot_code(y_data)
 y_data_test_hotcode = hot_code(y_data_test)
         
@@ -58,9 +91,12 @@ def RNN(x, weights, biases):
     outputs, states = tf.nn.rnn(lstm_cell, x, dtype=tf.float32)
 
     # Linear activation, using rnn inner loop last output
-    return tf.matmul(outputs[-1], weights['out']) + biases['out']
+    prediction = []
+    for i in range(len(outputs)):
+        prediction.append(tf.matmul(outputs[i], weights['out']) + biases['out'])
+    return prediction
 
-pred = RNN(x, weights, biases)
+pred = RNN(x, weights, biases)[-1]
 
 # Define loss and optimizer
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y))
@@ -77,31 +113,27 @@ init = tf.global_variables_initializer()
 with tf.Session() as sess:
     sess.run(init)
     step = 1
-    b_step = 0
     # Keep training until reach max iterations
     while step * batch_size < training_iters:
-        batch = b_step * batch_size
-        if(batch >= len(x_data) ):
-            b_step = 0
-            batch = b_step * batch_size
-            
-        batch_x = x_data[batch : batch + batch_size]
-        batch_y = y_data_hotcode[batch : batch + batch_size]
+        
+        batch_data = next_batch_data(x_data, batch_size)
+        batch_data = batch_data.reshape((batch_size, n_steps, n_input))
+        
+        batch_target = next_batch_target(y_data_hotcode, batch_size)
+        feed = {x: batch_data, y: batch_target}
         # Reshape data to get 28 seq of 28 elements
-        batch_x = batch_x.reshape((batch_size, n_steps, n_input))
         # Run optimization op (backprop)
-        sess.run(optimizer, feed_dict={x: batch_x, y: batch_y})
+        sess.run(optimizer, feed)
         if step % display_step == 0:
             # Calculate batch accuracy
-            acc = sess.run(accuracy, feed_dict={x: batch_x, y: batch_y})
+            acc = sess.run(accuracy, feed_dict={x: batch_data, y: batch_target})
             # Calculate batch loss
-            loss = sess.run(cost, feed_dict={x: batch_x, y: batch_y})
+            loss = sess.run(cost, feed_dict={x: batch_data, y: batch_target})
             print("Iter " + str(step*batch_size) + ", Minibatch Loss= " + \
                   "{:.6f}".format(loss) + ", Training Accuracy= " + \
                   "{:.5f}".format(acc))
 
         step += 1
-        b_step += 1
     print("Optimization Finished!")
 
     # Calculate accuracy for 128 mnist test images
